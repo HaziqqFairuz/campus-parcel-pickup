@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -40,6 +41,10 @@ class ApiException implements Exception {
 
 class AuthApi {
   AuthApi({required this.baseUrl, required this.client});
+
+  static const _showConnectionDiagnostics = bool.fromEnvironment(
+    'SHOW_CONNECTION_DIAGNOSTICS',
+  );
 
   final String baseUrl;
   final http.Client client;
@@ -129,10 +134,30 @@ class AuthApi {
           .send(request)
           .then(http.Response.fromStream)
           .timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      throw _connectionFailure('Request timed out');
+    } on http.ClientException catch (error) {
+      final reason = error.message.toLowerCase();
+      final detail = switch (reason) {
+        _
+            when reason.contains('permission denied') ||
+                reason.contains('operation not permitted') =>
+          'Network access denied',
+        _
+            when reason.contains('cleartext') ||
+                reason.contains('insecure http') =>
+          'HTTP blocked',
+        _ when reason.contains('unreachable') || reason.contains('no route') =>
+          'No route to server',
+        _ when reason.contains('refused') => 'Connection refused',
+        _ when reason.contains('reset') || reason.contains('closed') =>
+          'Connection closed',
+        _ when reason.contains('timed out') => 'Connection timed out',
+        _ => 'HTTP client error',
+      };
+      throw _connectionFailure(detail);
     } on Exception {
-      throw const ApiException(
-        'Could not reach the server. Check your connection and try again.',
-      );
+      throw _connectionFailure('Unexpected connection error');
     }
 
     final Object? body;
@@ -154,5 +179,15 @@ class AuthApi {
       );
     }
     return body;
+  }
+
+  ApiException _connectionFailure(String detail) {
+    const message =
+        'Could not reach the server. Check your connection and try again.';
+    return ApiException(
+      _showConnectionDiagnostics
+          ? '$message\nConnection check: $detail.'
+          : message,
+    );
   }
 }

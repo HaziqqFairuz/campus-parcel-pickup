@@ -1,4 +1,4 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import 'auth_api.dart';
 import 'screen_widgets.dart';
@@ -24,6 +24,26 @@ class RegistrationScreen extends StatelessWidget {
             AuthForm(
               register: true,
               submit: (name, email, password, confirm) async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    scrollable: true,
+                    title: const Text('Confirm account creation'),
+                    content: Text('Create a recipient account for $email?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text('Confirm'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !context.mounted) return;
+
                 await api.register(
                   name: name,
                   email: email,
