@@ -1,0 +1,3 @@
+# Preserve the Bearer header when PHP runs through Apache CGI/FastCGI.
+SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+
